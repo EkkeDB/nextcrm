@@ -6,6 +6,7 @@ backend/__pycache__/
 *.log
 media/
 staticfiles/
+backend/core/.env
 
 # PostgreSQL (ignore local dump files, optional)
 *.dump

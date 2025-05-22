@@ -1,5 +1,8 @@
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
+import os
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -71,13 +74,13 @@ WSGI_APPLICATION = "core.wsgi.application"
 # ============================
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "my_crm_postgre",
-        "USER": "postgres",
-        "PASSWORD": "Tyrande01",
-        "HOST": "localhost",  # or your PostgreSQL host
-        "PORT": "5432",  # or your PostgreSQL port
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB'),
+        'USER': config('POSTGRES_USER'),
+        'PASSWORD': config('POSTGRES_PASSWORD'),
+        'HOST': config('POSTGRES_HOST', default='localhost'),
+        'PORT': config('POSTGRES_PORT', default='5432'),
     }
 }
 
