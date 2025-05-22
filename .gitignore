@@ -1,0 +1,23 @@
+# Python/Django
+backend/__pycache__/
+*.pyc
+*.pyo
+*.env
+*.log
+media/
+staticfiles/
+
+# PostgreSQL (ignore local dump files, optional)
+*.dump
+*.sql
+
+# Node/Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env
+frontend/out/
+
+# System files
+.DS_Store
+.env
