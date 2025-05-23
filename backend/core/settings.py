@@ -11,7 +11,15 @@ SECRET_KEY = "django-insecure-oqo_+5zfc&t68!7d*tqu0h-d9)fz1rjtx)b@$-+eu7@&oxyoe#
 
 DEBUG = True
 
+if DEBUG:
+    # Desactivar seguridad HTTPS en entorno local
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SIMPLE_JWT["AUTH_COOKIE_SECURE"] = False
+
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
 
 # ============================
 #       INSTALLED_APPS
