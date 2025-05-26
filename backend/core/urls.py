@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.http import JsonResponse
 
 @api_view(['GET'])
 def health_check(request):
@@ -14,15 +15,33 @@ def health_check(request):
         'message': 'NextCRM API is running!'
     }, status=status.HTTP_200_OK)
 
+def home_view(request):
+    """Temporary home page"""
+    return JsonResponse({
+        'message': 'Welcome to NextCRM!',
+        'version': '1.0.0',
+        'status': 'running',
+        'admin': '/admin/',
+        'api_health': '/api/health/',
+        'api_auth': '/api/auth/',
+        'documentation': 'https://github.com/EkkeDB/NewCRM'
+    })
+
 urlpatterns = [
+    # Home page
+    path('', home_view, name='home'),
+    
     # Admin
     path('admin/', admin.site.urls),
     
     # Health check
     path('api/health/', health_check, name='health_check'),
     
-    # Authentication (we'll add this later)
-    # path('api/auth/', include('apps.authentication.urls')),
+    # Authentication
+    path('api/auth/', include('apps.authentication.urls')),
+    
+    # NextCRM API (we'll add this later)
+    # path('api/nextcrm/', include('apps.nextcrm.urls')),
 ]
 
 # Serve media files in development
