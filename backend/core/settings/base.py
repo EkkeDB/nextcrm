@@ -1,3 +1,4 @@
+# backend/core/settings/base.py
 import os
 from pathlib import Path
 from decouple import config
@@ -68,21 +69,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database - PostgreSQL with Windows-friendly configuration
+# Database - PostgreSQL with Windows Unicode fix
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME', default='nextcrm'),
         'USER': config('DB_USER', default='nextcrm_user'),
         'PASSWORD': config('DB_PASSWORD', default='nextcrm_password_2024'),
-        'HOST': config('DB_HOST', default='127.0.0.1'),  # Use 127.0.0.1 instead of localhost
+        'HOST': config('DB_HOST', default='127.0.0.1'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
             'client_encoding': 'UTF8',
+            'default_transaction_isolation': 'read committed',
+            'timezone': 'UTC',
         },
-        'TEST': {
-            'NAME': 'test_nextcrm',
-        },
+        'CONN_MAX_AGE': 0,
     }
 }
 
@@ -141,4 +142,18 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
+
+# Crear directorios necesarios
+import pathlib
+(BASE_DIR / 'static').mkdir(exist_ok=True)
+(BASE_DIR / 'media').mkdir(exist_ok=True)

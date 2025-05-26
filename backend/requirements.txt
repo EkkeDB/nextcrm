@@ -1,34 +1,49 @@
-Django==4.2.7
-python-decouple
-djangorestframework==3.14.0
-djangorestframework-simplejwt==5.3.0
-django-cors-headers==4.3.1
-django-filter==23.3
-django-reversion==5.0.4
-drf-spectacular==0.26.5
-psycopg2-binary
-celery==5.3.4
-redis==5.0.1
-Pillow
-python-decouple==3.8
-gunicorn==21.2.0
-whitenoise==6.6.0
-cryptography==41.0.7
-bcrypt==4.1.2
-python-magic==0.4.27
-xlsxwriter==3.1.9
-reportlab==4.0.7
-requests==2.31.0
-python-dateutil==2.8.2
-pytz==2023.3
+# Core Django (latest stable)
+Django
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+django-filter
+drf-spectacular
 
-# Development dependencies
-pytest==7.4.3
-pytest-django==4.7.0
-pytest-cov==4.1.0
-black==23.11.0
-isort==5.12.0
-flake8==6.1.0
-pre-commit==3.5.0
-factory-boy==3.3.0
-faker==20.1.0
+# Database
+psycopg2-binary
+dj-database-url
+
+# Utilities
+python-decouple
+requests
+Pillow
+python-dateutil
+pytz
+
+# Security
+cryptography
+bcrypt
+
+# File handling
+xlsxwriter
+reportlab
+python-magic
+
+# Task queue
+celery
+redis
+
+# Web server
+gunicorn
+whitenoise
+
+# Development tools
+pytest
+pytest-django
+pytest-cov
+black
+isort
+flake8
+pre-commit
+
+# Testing
+factory-boy
+faker
+coverage
