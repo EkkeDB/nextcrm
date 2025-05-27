@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['@radix-ui'],
-  },
+  serverExternalPackages: ['@radix-ui'],
   images: {
     domains: ['localhost'],
     unoptimized: process.env.NODE_ENV === 'development'
@@ -49,4 +47,4 @@ const nextConfig = {
   }
 }
 
-module.exports = nextConfig
+export default nextConfig
