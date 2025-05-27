@@ -40,8 +40,8 @@ urlpatterns = [
     # Authentication
     path('api/auth/', include('apps.authentication.urls')),
     
-    # NextCRM API (we'll add this later)
-    # path('api/nextcrm/', include('apps.nextcrm.urls')),
+    # NextCRM API
+    path('api/nextcrm/', include('apps.nextcrm.urls')),
 ]
 
 # Serve media files in development
