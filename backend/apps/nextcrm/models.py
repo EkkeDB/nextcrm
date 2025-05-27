@@ -284,7 +284,7 @@ class Contract(BaseModel):
     # Contract dates
     date = models.DateField()  # Contract date
     
-    # Contract status
+    # Contract status d
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('approved', 'Approved'),
