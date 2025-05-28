@@ -1,19 +1,19 @@
-// File: /c:/Mis_Proyectos/Python/NextCRM/frontend/src/app/contracts/new/components/ContractForm.tsx
+// File: /c:/Mis_Proyectos/Python/NextCRM/frontend/src/app/contracts/[id]/edit/page.tsx
 
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, CheckCircle, Save, X, ArrowRight } from 'lucide-react';
 import { useContractForm } from '@/hooks/useContractForm';
 import { 
   FinancialDetailsStep, 
   DatesDeliveryStep, 
   DocumentsStep, 
   ReviewSubmitStep 
-} from './ContractFormSteps';
+} from '../../new/components/ContractFormSteps';
 
-// Basic Information Step Component
+// Basic Information Step Component (reused from new contract)
 const BasicInformationStep = ({ formData, errors, onUpdate }: any) => {
   return (
     <div className="p-6">
@@ -80,7 +80,7 @@ const BasicInformationStep = ({ formData, errors, onUpdate }: any) => {
   );
 };
 
-// Parties and Commodity Step Component
+// Parties and Commodity Step Component (reused from new contract)
 const PartiesAndCommodityStep = ({ formData, errors, onUpdate, commodities, counterparties, traders }: any) => {
   return (
     <div className="p-6">
@@ -159,9 +159,46 @@ const PartiesAndCommodityStep = ({ formData, errors, onUpdate, commodities, coun
   );
 };
 
-// Main ContractForm component
-export default function ContractForm() {
+// Mock function to get existing contract data for editing
+const getMockContractForEdit = (id: string) => ({
+  id,
+  title: `Sample Contract ${id}`,
+  description: 'This is a sample contract for editing purposes.',
+  type: 'purchase' as const,
+  commodityId: '1',
+  counterpartyId: '1',
+  traderId: '1',
+  quantity: 1000,
+  unit: 'MT',
+  pricePerUnit: 250,
+  totalValue: 250000,
+  currency: 'USD',
+  paymentTerms: 'Net 30',
+  specialTerms: 'Special terms and conditions',
+  startDate: '2024-02-01',
+  endDate: '2024-12-31',
+  deliveryDate: '2024-03-15',
+  deliveryLocation: 'Chicago, IL',
+  deliveryTerms: 'FOB',
+  deliveryInstructions: 'Handle with care',
+  documents: [
+    {
+      id: 1,
+      name: 'existing_contract.pdf',
+      size: '2.1 MB',
+      type: 'PDF',
+      uploadDate: '2024-01-15T00:00:00Z'
+    }
+  ]
+});
+
+export default function ContractEditPage() {
+  const params = useParams();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Use the same hook as new contract, but with edit mode
   const {
     currentStep,
     totalSteps,
@@ -172,14 +209,11 @@ export default function ContractForm() {
     prevStep,
     updateFormData,
     validateStep,
-    submitContract,
     saveDraft,
     commodities,
     counterparties,
     traders
   } = useContractForm();
-
-  const [showSuccess, setShowSuccess] = useState(false);
 
   // Step labels for progress indicator
   const stepLabels = [
@@ -191,6 +225,36 @@ export default function ContractForm() {
     'Review & Submit'
   ];
 
+  // Load existing contract data
+  useEffect(() => {
+    const loadContractData = async () => {
+      try {
+        setLoading(true);
+        
+        // Simulate API call to get existing contract
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // In real implementation: 
+        // const response = await fetch(`/api/contracts/${params.id}`);
+        // const contractData = await response.json();
+        
+        const contractData = getMockContractForEdit(params.id as string);
+        
+        // Update form data with existing contract
+        updateFormData(contractData);
+        
+      } catch (error) {
+        console.error('Error loading contract:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (params.id) {
+      loadContractData();
+    }
+  }, [params.id, updateFormData]);
+
   // Handle next step with validation
   const handleNext = async () => {
     const isValid = validateStep(currentStep);
@@ -199,18 +263,37 @@ export default function ContractForm() {
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async () => {
+  // Handle update (instead of create)
+  const handleUpdate = async () => {
     try {
-      const success = await submitContract();
-      if (success) {
-        setShowSuccess(true);
-        setTimeout(() => {
-          router.push('/contracts');
-        }, 3000);
+      // Validate all steps
+      const allStepsValid = [1, 2, 3, 4, 5, 6].every(step => validateStep(step));
+      
+      if (!allStepsValid) {
+        alert('❌ Please fix all validation errors before updating');
+        return;
       }
+
+      // Simulate API call to update contract
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('Updating contract:', { ...formData, id: params.id });
+      
+      // In real implementation:
+      // const response = await fetch(`/api/contracts/${params.id}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData)
+      // });
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push(`/contracts/${params.id}`);
+      }, 2000);
+      
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error('Update error:', error);
+      alert('❌ Failed to update contract. Please try again.');
     }
   };
 
@@ -218,6 +301,18 @@ export default function ContractForm() {
   const handleSaveDraft = async () => {
     await saveDraft();
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading contract data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Success screen
   if (showSuccess) {
@@ -229,22 +324,22 @@ export default function ContractForm() {
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Contract Created!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Contract Updated!</h2>
           <p className="text-gray-600 mb-6">
-            Your contract has been successfully created and is now pending approval.
+            Your contract has been successfully updated.
           </p>
           <div className="space-y-3">
             <button
-              onClick={() => router.push('/contracts')}
+              onClick={() => router.push(`/contracts/${params.id}`)}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              View All Contracts
+              View Contract
             </button>
             <button
-              onClick={() => router.push('/contracts/new')}
+              onClick={() => router.push('/contracts')}
               className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Create Another Contract
+              Back to Contracts
             </button>
           </div>
         </div>
@@ -258,13 +353,13 @@ export default function ContractForm() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/contracts')}
+            onClick={() => router.push(`/contracts/${params.id}`)}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Contracts
+            Back to Contract Details
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Create New Contract</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Contract</h1>
           <p className="text-gray-600 mt-2">Step {currentStep} of {totalSteps}: {stepLabels[currentStep - 1]}</p>
         </div>
 
@@ -385,8 +480,9 @@ export default function ContractForm() {
                 type="button"
                 onClick={handleSaveDraft}
                 disabled={isLoading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-colors"
               >
+                <Save className="w-4 h-4 mr-2" />
                 Save Draft
               </button>
               
@@ -403,17 +499,17 @@ export default function ContractForm() {
               ) : (
                 <button
                   type="button"
-                  onClick={handleSubmit}
+                  onClick={handleUpdate}
                   disabled={isLoading}
                   className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
                   {isLoading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Contract...
+                      Updating Contract...
                     </div>
                   ) : (
-                    'Create Contract'
+                    'Update Contract'
                   )}
                 </button>
               )}
@@ -421,18 +517,15 @@ export default function ContractForm() {
           </div>
         </div>
 
-        {/* Help Text */}
+        {/* Cancel Changes */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">
-            Need help? Check our{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
-              Contract Creation Guide
-            </a>{' '}
-            or{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
-              contact support
-            </a>
-          </p>
+          <button
+            onClick={() => router.push(`/contracts/${params.id}`)}
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Cancel and return to contract details
+          </button>
         </div>
       </div>
     </div>

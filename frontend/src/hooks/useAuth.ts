@@ -1,125 +1,148 @@
-// File: src/hooks/useAuth.ts
+// File: /c:/Mis_Proyectos/Python/NextCRM/frontend/src/hooks/useAuth.ts
 
 'use client';
 
-import { useContext } from 'react';
-import { AuthContext } from '@/components/providers/AuthProvider';
-import { AuthContextType } from '@/types/auth';
+import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { authApi, type User, type LoginCredentials, type ApiError } from '@/lib/api';
 
-/**
- * Hook to access authentication context
- * Must be used within AuthProvider
- */
+// Auth context type
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  login: (credentials: LoginCredentials) => Promise<boolean>;
+  logout: () => Promise<void>;
+  isAuthenticated: boolean;
+  clearError: () => void;
+}
+
+// Create auth context
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Auth provider component
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Initialize auth state
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        setLoading(true);
+        
+        // Check if user is authenticated
+        if (authApi.isAuthenticated()) {
+          const userData = await authApi.getCurrentUser();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Clear invalid tokens
+        authApi.logout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  // Login function
+  const login = async (credentials: LoginCredentials): Promise<boolean> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await authApi.login(credentials);
+      setUser(response.user);
+      
+      return true;
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Login failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setLoading(false);
+      router.push('/login');
+    }
+  };
+
+  // Clear error
+  const clearError = () => {
+    setError(null);
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    isAuthenticated: !!user,
+    clearError,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Hook to use auth context
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  
   return context;
 }
 
-/**
- * Hook to check if user has specific role(s)
- */
-export function useRole(requiredRoles?: string | string[]): boolean {
-  const { user, isAuthenticated } = useAuth();
-  
-  if (!isAuthenticated || !user) {
-    return false;
-  }
-  
-  if (!requiredRoles) {
-    return true;
-  }
-  
-  const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
-  
-  // Role hierarchy: admin > manager > user
-  const roleHierarchy: Record<string, number> = {
-    'admin': 3,
-    'manager': 2,
-    'user': 1,
-  };
-  
-  const userLevel = roleHierarchy[user.role] || 0;
-  const requiredLevel = Math.min(...roles.map(role => roleHierarchy[role] || 0));
-  
-  return userLevel >= requiredLevel;
-}
+// HOC for protected routes
+export function withAuth<P extends object>(
+  Component: React.ComponentType<P>
+): React.ComponentType<P> {
+  return function AuthenticatedComponent(props: P) {
+    const { isAuthenticated, loading } = useAuth();
+    const router = useRouter();
 
-/**
- * Hook to check if user is admin
- */
-export function useIsAdmin(): boolean {
-  return useRole('admin');
-}
+    useEffect(() => {
+      if (!loading && !isAuthenticated) {
+        router.push('/login');
+      }
+    }, [isAuthenticated, loading, router]);
 
-/**
- * Hook to check if user is manager or above
- */
-export function useIsManager(): boolean {
-  return useRole(['admin', 'manager']);
-}
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
 
-/**
- * Hook for auth-related utilities
- */
-export function useAuthHelpers() {
-  const { user } = useAuth();
-  
-  const getUserDisplayName = (): string => {
-    if (!user) return '';
-    
-    if (user.first_name && user.last_name) {
-      return `${user.first_name} ${user.last_name}`;
+    if (!isAuthenticated) {
+      return null;
     }
-    if (user.first_name) {
-      return user.first_name;
-    }
-    return user.email;
-  };
-  
-  const getUserInitials = (): string => {
-    if (!user) return '';
-    
-    if (user.first_name && user.last_name) {
-      return `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
-    }
-    if (user.first_name) {
-      return user.first_name.charAt(0).toUpperCase();
-    }
-    return user.email.charAt(0).toUpperCase();
-  };
-  
-  const getRoleDisplayName = (): string => {
-    if (!user) return '';
-    
-    const roleNames: Record<string, string> = {
-      'admin': 'Administrator',
-      'manager': 'Manager',
-      'user': 'User',
-    };
-    return roleNames[user.role] || user.role;
-  };
-  
-  const getRoleColor = (): string => {
-    if (!user) return 'text-gray-600 bg-gray-100';
-    
-    const roleColors: Record<string, string> = {
-      'admin': 'text-red-600 bg-red-100',
-      'manager': 'text-blue-600 bg-blue-100',
-      'user': 'text-green-600 bg-green-100',
-    };
-    return roleColors[user.role] || 'text-gray-600 bg-gray-100';
-  };
-  
-  return {
-    user,
-    getUserDisplayName,
-    getUserInitials,
-    getRoleDisplayName,
-    getRoleColor,
+
+    return <Component {...props} />;
   };
 }

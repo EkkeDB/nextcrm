@@ -1,311 +1,99 @@
-// File: src/app/contracts/page.tsx
+// File: /c:/Mis_Proyectos/Python/NextCRM/frontend/src/app/contracts/page.tsx
 
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AuthGuard } from '@/components/guards/AuthGuard';
+import Link from 'next/link';
 import { useContracts } from '@/hooks/useContracts';
-import { ContractBulkAction } from '@/types/contracts';
-import Button from '@/components/ui/Button';
-import ContractsTable from './components/ContractsTable';
-import ContractsFilters from './components/ContractsFilters';
 import { 
   Plus, 
+  Search, 
+  Filter, 
   Download, 
-  RefreshCw, 
-  Trash, 
-  CheckCircle, 
-  XCircle, 
-  Pause,
-  Play,
-  FileDown
+  MoreVertical,
+  Eye,
+  Edit,
+  Trash2,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  X
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-function ContractsHeader({ 
-  selectedCount, 
-  onBulkAction, 
-  onRefresh, 
-  loading 
-}: {
-  selectedCount: number;
-  onBulkAction: (action: ContractBulkAction) => void;
-  onRefresh: () => void;
-  loading: boolean;
-}) {
-  const router = useRouter();
+// Remove the invalid import - ContractForm is in /new/components/, not here
+// import ContractForm from './components/ContractForm'; // REMOVE THIS LINE
 
-  const bulkActions = [
-    { 
-      action: 'approve' as const, 
-      label: 'Approve', 
-      icon: CheckCircle, 
-      className: 'text-green-600 hover:bg-green-50' 
-    },
-    { 
-      action: 'suspend' as const, 
-      label: 'Suspend', 
-      icon: Pause, 
-      className: 'text-yellow-600 hover:bg-yellow-50' 
-    },
-    { 
-      action: 'activate' as const, 
-      label: 'Activate', 
-      icon: Play, 
-      className: 'text-blue-600 hover:bg-blue-50' 
-    },
-    { 
-      action: 'delete' as const, 
-      label: 'Delete', 
-      icon: Trash, 
-      className: 'text-red-600 hover:bg-red-50' 
-    },
-  ];
+export default function ContractsPage() {
+  const {
+    contracts,
+    loading,
+    error,
+    filters,
+    sortConfig,
+    currentPage,
+    totalPages,
+    selectedContracts,
+    handleSort,
+    handleFilterChange,
+    setCurrentPage,
+    setSelectedContracts
+  } = useContracts();
 
-  return (
-    <div className="bg-white border-b px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contracts</h1>
-          <p className="text-gray-600 mt-1">Manage and track your business contracts</p>
-        </div>
+  const [showFilters, setShowFilters] = useState(false);
 
-        <div className="flex items-center space-x-3">
-          {/* Bulk Actions */}
-          {selectedCount > 0 && (
-            <div className="flex items-center space-x-2 mr-4">
-              <span className="text-sm text-gray-600">
-                {selectedCount} selected
-              </span>
-              <div className="flex border border-gray-300 rounded-md">
-                {bulkActions.map((action, index) => (
-                  <button
-                    key={action.action}
-                    onClick={() => onBulkAction({ 
-                      action: action.action, 
-                      contract_ids: [] // Will be filled by the parent component
-                    })}
-                    className={cn(
-                      'flex items-center px-3 py-1.5 text-sm font-medium transition-colors',
-                      index === 0 && 'rounded-l-md',
-                      index === bulkActions.length - 1 && 'rounded-r-md',
-                      index > 0 && 'border-l border-gray-300',
-                      action.className
-                    )}
-                    disabled={loading}
-                  >
-                    <action.icon className="w-4 h-4 mr-1" />
-                    {action.label}
-                  </button>
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'pending':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'expired':
+      case 'cancelled':
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      draft: 'bg-gray-100 text-gray-700',
+      active: 'bg-green-100 text-green-700',
+      pending: 'bg-yellow-100 text-yellow-700',
+      expired: 'bg-red-100 text-red-700',
+      cancelled: 'bg-red-100 text-red-700'
+    };
+    return colors[status as keyof typeof colors] || colors.draft;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="h-6 bg-gray-300 rounded w-1/3 mb-4"></div>
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-4 bg-gray-300 rounded"></div>
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Action Buttons */}
-          <Button
-            onClick={onRefresh}
-            variant="outline"
-            size="sm"
-            disabled={loading}
-          >
-            <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
-            Refresh
-          </Button>
-
-          <Button
-            onClick={() => {/* Handle export */}}
-            variant="outline"
-            size="sm"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-
-          <Button
-            onClick={() => router.push('/contracts/new')}
-            size="sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Contract
-          </Button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ContractsPagination({ 
-  currentPage, 
-  totalPages, 
-  pageSize, 
-  totalCount, 
-  onPageChange, 
-  onPageSizeChange 
-}: {
-  currentPage: number;
-  totalPages: number;
-  pageSize: number;
-  totalCount: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
-}) {
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalCount);
-
-  const getVisiblePages = () => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
-
-    for (let i = Math.max(2, currentPage - delta); 
-         i <= Math.min(totalPages - 1, currentPage + delta); 
-         i++) {
-      range.push(i);
-    }
-
-    if (currentPage - delta > 2) {
-      rangeWithDots.push(1, '...');
-    } else {
-      rangeWithDots.push(1);
-    }
-
-    rangeWithDots.push(...range);
-
-    if (currentPage + delta < totalPages - 1) {
-      rangeWithDots.push('...', totalPages);
-    } else if (totalPages > 1) {
-      rangeWithDots.push(totalPages);
-    }
-
-    return rangeWithDots;
-  };
-
-  return (
-    <div className="bg-white px-6 py-4 border-t flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <div className="text-sm text-gray-700">
-          Showing {startItem}-{endItem} of {totalCount} contracts
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-700">Show:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-primary focus:ring-primary"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-1">
-        <Button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
-          variant="outline"
-          size="sm"
-        >
-          Previous
-        </Button>
-
-        {getVisiblePages().map((page, index) => (
-          <button
-            key={index}
-            onClick={() => typeof page === 'number' && onPageChange(page)}
-            disabled={typeof page !== 'number'}
-            className={cn(
-              'px-3 py-1 text-sm font-medium rounded transition-colors',
-              typeof page === 'number' && page === currentPage
-                ? 'bg-primary text-white'
-                : typeof page === 'number'
-                ? 'text-gray-700 hover:bg-gray-100'
-                : 'text-gray-400 cursor-default'
-            )}
-          >
-            {page}
-          </button>
-        ))}
-
-        <Button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages}
-          variant="outline"
-          size="sm"
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function ContractsContent() {
-  const {
-    contracts,
-    totalCount,
-    loading,
-    error,
-    currentPage,
-    pageSize,
-    totalPages,
-    filters,
-    sortConfig,
-    setPage,
-    setPageSize,
-    setFilters,
-    setSort,
-    refreshContracts,
-    bulkAction,
-    selectedIds,
-    setSelectedIds,
-    selectAll,
-    clearSelection,
-  } = useContracts();
-
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
-
-  const handleClearFilters = () => {
-    setFilters({});
-  };
-
-  const handleBulkAction = async (action: ContractBulkAction) => {
-    if (selectedIds.length === 0) return;
-
-    try {
-      setBulkActionLoading(true);
-      await bulkAction({
-        ...action,
-        contract_ids: selectedIds,
-      });
-      // Success handled by the hook (refreshes data and clears selection)
-    } catch (error: any) {
-      console.error('Bulk action failed:', error);
-      // Handle error (could show a toast notification)
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
+    );
+  }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Contracts</h2>
+            <p className="text-red-600">{error}</p>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Failed to load contracts
-          </h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Button onClick={refreshContracts}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
-          </Button>
         </div>
       </div>
     );
@@ -313,51 +101,278 @@ function ContractsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ContractsHeader
-        selectedCount={selectedIds.length}
-        onBulkAction={handleBulkAction}
-        onRefresh={refreshContracts}
-        loading={loading || bulkActionLoading}
-      />
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Contracts</h1>
+            <p className="text-gray-600 mt-1">Manage your contracts and agreements</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+            </button>
+            <Link
+              href="/contracts/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Contract
+            </Link>
+          </div>
+        </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <ContractsFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={handleClearFilters}
-          loading={loading}
-        />
-
-        <ContractsTable
-          contracts={contracts}
-          loading={loading}
-          sortConfig={sortConfig}
-          onSort={setSort}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          onSelectAll={selectAll}
-          onClearSelection={clearSelection}
-        />
-
-        {totalCount > 0 && (
-          <ContractsPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalCount={totalCount}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
+        {/* Filters */}
+        {showFilters && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange({ search: e.target.value })}
+                    placeholder="Search contracts..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange({ status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Status</option>
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="expired">Expired</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <select
+                  value={filters.type}
+                  onChange={(e) => handleFilterChange({ type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Types</option>
+                  <option value="purchase">Purchase</option>
+                  <option value="sales">Sales</option>
+                  <option value="service">Service</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => handleFilterChange({ dateFrom: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => handleFilterChange({ dateTo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Contracts Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedContracts(contracts.map(c => c.id));
+                        } else {
+                          setSelectedContracts([]);
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th 
+                    onClick={() => handleSort('contractNumber')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    Contract #
+                  </th>
+                  <th 
+                    onClick={() => handleSort('title')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    Title
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Counterparty
+                  </th>
+                  <th 
+                    onClick={() => handleSort('totalValue')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    Value
+                  </th>
+                  <th 
+                    onClick={() => handleSort('createdAt')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {contracts.map((contract: any) => (
+                  <tr key={contract.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedContracts.includes(contract.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedContracts([...selectedContracts, contract.id]);
+                          } else {
+                            setSelectedContracts(selectedContracts.filter(id => id !== contract.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {contract.contractNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{contract.title}</div>
+                      <div className="text-sm text-gray-500">{contract.commodity?.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
+                        {getStatusIcon(contract.status)}
+                        <span className="ml-1 capitalize">{contract.status}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                      {contract.type}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {contract.counterparty?.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${contract.totalValue?.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(contract.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          href={`/contracts/${contract.id}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          href={`/contracts/${contract.id}/edit`}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        <button className="text-red-600 hover:text-red-900">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing page <span className="font-medium">{currentPage}</span> of{' '}
+                  <span className="font-medium">{totalPages}</span>
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-export default function ContractsPage() {
-  return (
-    <AuthGuard>
-      <ContractsContent />
-    </AuthGuard>
   );
 }
