@@ -1,103 +1,160 @@
-// File: src/hooks/useAuth.ts
 'use client';
 
-import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi, type User, type LoginCredentials, type ApiError } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
-interface AuthContextType {
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  company?: string;
+  position?: string;
+}
+
+interface AuthState {
   user: User | null;
-  loading: boolean;
-  error: string | null;
-  login: (credentials: LoginCredentials) => Promise<boolean>;
-  logout: () => Promise<void>;
+  isLoading: boolean;
   isAuthenticated: boolean;
-  clearError: () => void;
+}
+
+interface AuthContextType extends AuthState {
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  checkAuthStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        setLoading(true);
-        
-        if (authApi.isAuthenticated()) {
-          const userData = await authApi.getCurrentUser();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        authApi.logout();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-  }, []);
-
-  const login = async (credentials: LoginCredentials): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await authApi.login(credentials);
-      setUser(response.user);
-      
-      return true;
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || 'Login failed');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    try {
-      setLoading(true);
-      await authApi.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      setLoading(false);
-      router.push('/login');
-    }
-  };
-
-  const clearError = () => {
-    setError(null);
-  };
-
-  const value: AuthContextType = {
-    user,
-    loading,
-    error,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    clearError,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth(): AuthContextType {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
+
+// Export the auth helpers function that your dashboard is looking for
+export const useAuthHelpers = () => {
+  const requireAuth = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    return !!token;
+  };
+
+  const getToken = () => {
+    return typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  };
+
+  const isTokenExpired = (token: string) => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  };
+
+  return {
+    requireAuth,
+    getToken,
+    isTokenExpired,
+  };
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    isLoading: true,
+    isAuthenticated: false,
+  });
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      if (!token) {
+        setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+        return;
+      }
+
+      const response = await apiClient.get('/auth/profile/');
+      setAuthState({
+        user: response.data,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      }
+      setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+    }
+  };
+
+  const login = async (username: string, password: string) => {
+    try {
+      const response = await apiClient.post('/auth/login/', {
+        username,
+        password,
+      });
+
+      const { tokens, user } = response.data;
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('access_token', tokens.access);
+        localStorage.setItem('refresh_token', tokens.refresh);
+      }
+
+      setAuthState({
+        user,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || 'Login failed',
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+      if (refreshToken) {
+        await apiClient.post('/auth/logout/', {
+          refresh_token: refreshToken,
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      }
+      setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+      router.push('/login');
+    }
+  };
+
+  const value: AuthContextType = {
+    ...authState,
+    login,
+    logout,
+    checkAuthStatus,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
