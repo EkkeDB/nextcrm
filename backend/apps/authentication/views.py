@@ -250,3 +250,11 @@ class CustomTokenRefreshView(TokenRefreshView):
         if response.status_code == 200 and request.user.is_authenticated:
             log_user_action(request.user, 'TOKEN_REFRESH', 'User', request.user.id, str(request.user), request=request)
         return response
+    
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def auth_root(request):
+    return Response({
+        "message": "Auth root. Available endpoints: register, login, logout, token/refresh, profile, etc."
+    })
