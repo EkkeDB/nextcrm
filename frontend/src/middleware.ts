@@ -84,7 +84,8 @@ export function middleware(request: NextRequest) {
   const accessToken = request.cookies.get('access_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
   
-  const isAuthenticated = !!(accessToken || refreshToken);
+  const isAuthenticated = !!accessToken;
+
 
   // Public routes - allow access
   if (isPublicRoute(pathname)) {
