@@ -2,12 +2,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework import status, permissions
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.http import JsonResponse
 
 @api_view(['GET'])
+@permission_classes([permissions.AllowAny])
 def health_check(request):
     """Health check endpoint"""
     return Response({
