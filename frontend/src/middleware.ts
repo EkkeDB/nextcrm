@@ -17,11 +17,15 @@ const PROTECTED_ROUTES = {
 const PUBLIC_ROUTES = [
   '/',
   '/login',
+  '/register',
   '/forgot-password',
   '/reset-password',
   '/privacy',
   '/terms',
   '/access-denied',
+  '/test-lib',
+  '/test-lib-simple',
+  '/dashboard-debug',
 ];
 
 // API routes that should be proxied
@@ -49,17 +53,24 @@ function isProtectedRoute(pathname: string): boolean {
   });
 }
 
-function getRequiredRoles(pathname: string): string[] {
-  for (const [route, roles] of Object.entries(PROTECTED_ROUTES)) {
-    if (route.endsWith('*')) {
-      if (pathname.startsWith(route.slice(0, -1))) {
-        return [...roles]; // Convert readonly array to mutable array
-      }
-    } else if (pathname === route || pathname.startsWith(`${route}/`)) {
-      return [...roles]; // Convert readonly array to mutable array
-    }
+function hasValidToken(request: NextRequest): boolean {
+  // For localStorage tokens, we can't check them in middleware
+  // For HttpOnly cookies, you would check them here:
+  // const accessToken = request.cookies.get('access_token')?.value;
+  // return !!accessToken && !isTokenExpired(accessToken);
+  
+  // For now, let client-side handle auth validation
+  const accessToken = request.cookies.get('access_token')?.value;
+  return !!accessToken;
+}
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
   }
-  return [];
 }
 
 export function middleware(request: NextRequest) {
@@ -75,22 +86,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle API routes - let them pass through
+  // Handle API routes - let them pass through (auth handled by backend)
   if (isApiRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Get tokens from cookies
-  const accessToken = request.cookies.get('access_token')?.value;
-  const refreshToken = request.cookies.get('refresh_token')?.value;
-  
-  const isAuthenticated = !!accessToken;
+  // Check authentication status
+  const isAuthenticated = hasValidToken(request);
 
-
-  // Public routes - allow access
+  // Public routes - allow access, but redirect authenticated users from login
   if (isPublicRoute(pathname)) {
-    // Redirect authenticated users away from login page
-    if (isAuthenticated && pathname === '/login') {
+    if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
@@ -109,12 +115,11 @@ export function middleware(request: NextRequest) {
 
     // TODO: Role-based access control would require decoding JWT
     // For now, we'll let the client-side components handle role checks
-    // In production, you might want to decode the JWT here to check roles
     
     return NextResponse.next();
   }
 
-  // Default: redirect to dashboard for authenticated users, login for others
+  // Default: redirect to appropriate page
   if (pathname === '/') {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -132,7 +137,7 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * - api (API routes handled by backend)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
