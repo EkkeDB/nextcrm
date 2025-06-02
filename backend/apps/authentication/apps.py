@@ -1,23 +1,21 @@
+import os
 from django.apps import AppConfig
 from django.contrib.auth import get_user_model
-from django.db.utils import OperationalError, ProgrammingError
-import os
 
 class AuthenticationConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.authentication'
 
     def ready(self):
-        if os.environ.get("DJANGO_SUPERUSER_AUTOCREATE", "true") != "true":
-            return
-
-        try:
+        if os.getenv("DJANGO_SUPERUSER_AUTOCREATE") == "true":
             User = get_user_model()
-            if not User.objects.filter(username="admin").exists():
+            username = os.getenv("DJANGO_SUPERUSER_USERNAME", "admin")
+            email = os.getenv("DJANGO_SUPERUSER_EMAIL", "admin@example.com")
+            password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "admin1234")
+
+            if not User.objects.filter(username=username).exists():
                 User.objects.create_superuser(
-                    username="admin",
-                    email="admin@example.com",
-                    password="admin123"
+                    username=username,
+                    email=email,
+                    password=password
                 )
-        except (OperationalError, ProgrammingError):
-            pass

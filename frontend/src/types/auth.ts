@@ -2,13 +2,16 @@
 
 export interface AuthUser {
   id: number;
+  username: string;
   email: string;
   first_name: string;
   last_name: string;
-  role: 'admin' | 'manager' | 'user';
+  role?: 'admin' | 'manager' | 'user';
   is_active: boolean;
   date_joined: string;
   last_login?: string;
+  company?: string;
+  position?: string;
 }
 
 export interface AuthState {
@@ -19,7 +22,7 @@ export interface AuthState {
 }
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
   remember_me?: boolean;
 }
@@ -29,10 +32,9 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  refreshAuth: () => Promise<void>;
-  clearError: () => void;
+  checkAuthStatus: () => Promise<void>;
 }
 
 export interface ProtectedRouteProps {
@@ -43,13 +45,13 @@ export interface ProtectedRouteProps {
 
 // Form validation schemas
 export interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
   remember_me: boolean;
 }
 
 export interface LoginFormErrors {
-  email?: string;
+  username?: string;
   password?: string;
   general?: string;
 }

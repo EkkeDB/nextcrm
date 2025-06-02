@@ -2,29 +2,8 @@
 
 import { useState, useEffect, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api';
-
-interface User {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  company?: string;
-  position?: string;
-}
-
-interface AuthState {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-}
-
-interface AuthContextType extends AuthState {
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
-  checkAuthStatus: () => Promise<void>;
-}
+import { authService } from '@/lib/auth';
+import { AuthUser, AuthState, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -36,15 +15,13 @@ export const useAuth = () => {
   return context;
 };
 
-// Export the auth helpers function that your dashboard is looking for
 export const useAuthHelpers = () => {
   const requireAuth = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    return !!token;
+    return authService.isAuthenticated();
   };
 
   const getToken = () => {
-    return typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    return authService.getToken();
   };
 
   const isTokenExpired = (token: string) => {
@@ -63,11 +40,27 @@ export const useAuthHelpers = () => {
   };
 };
 
+// Add useRole hook that was referenced in AuthGuard
+export const useRole = (requiredRoles: string[] = []) => {
+  const { user } = useAuth();
+  
+  if (requiredRoles.length === 0) return true;
+  
+  // For now, just check if user is staff/admin
+  // You can expand this based on your role system
+  if (requiredRoles.includes('admin')) {
+    return user?.username === 'admin'; // Simple check, improve as needed
+  }
+  
+  return true;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     isLoading: true,
     isAuthenticated: false,
+    error: null,
   });
   const router = useRouter();
 
@@ -77,51 +70,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuthStatus = async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const token = authService.getToken();
       if (!token) {
-        setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+        setAuthState({ user: null, isLoading: false, isAuthenticated: false, error: null });
         return;
       }
 
-      const response = await apiClient.get('/auth/profile/');
+      const user = await authService.getCurrentUser();
       setAuthState({
-        user: response.data,
+        user,
         isLoading: false,
         isAuthenticated: true,
+        error: null,
       });
     } catch (error) {
       console.error('Auth check failed:', error);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-      }
-      setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+      await authService.logout();
+      setAuthState({ user: null, isLoading: false, isAuthenticated: false, error: null });
     }
   };
 
   const login = async (username: string, password: string) => {
     try {
-      const response = await apiClient.post('/auth/login/', {
-        username,
-        password,
-      });
-
-      const { tokens, user } = response.data;
+      const response = await authService.login({ username, password });
       
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('access_token', tokens.access);
-        localStorage.setItem('refresh_token', tokens.refresh);
-      }
+      // Store tokens using the token manager
+      const { tokenManager } = await import('@/lib/api');
+      tokenManager.setTokens(response.tokens.access, response.tokens.refresh);
 
       setAuthState({
-        user,
+        user: response.user,
         isLoading: false,
         isAuthenticated: true,
+        error: null,
       });
 
       return { success: true };
     } catch (error: any) {
       console.error('Login failed:', error);
+      setAuthState(prev => ({
+        ...prev,
+        error: error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || 'Login failed',
+      }));
       return {
         success: false,
         error: error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || 'Login failed',
@@ -131,20 +121,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
-      if (refreshToken) {
-        await apiClient.post('/auth/logout/', {
-          refresh_token: refreshToken,
-        });
-      }
+      await authService.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-      }
-      setAuthState({ user: null, isLoading: false, isAuthenticated: false });
+      setAuthState({ user: null, isLoading: false, isAuthenticated: false, error: null });
       router.push('/login');
     }
   };
