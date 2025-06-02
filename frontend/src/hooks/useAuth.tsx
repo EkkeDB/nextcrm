@@ -17,41 +17,20 @@ export const useAuth = () => {
 
 export const useAuthHelpers = () => {
   const requireAuth = () => {
-    return authService.isAuthenticated();
+    return true; // Always true, since we rely on backend session
   };
 
-  const getToken = () => {
-    return authService.getToken();
-  };
-
-  const isTokenExpired = (token: string) => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  };
-
-  return {
-    requireAuth,
-    getToken,
-    isTokenExpired,
-  };
+  return { requireAuth };
 };
 
-// Add useRole hook that was referenced in AuthGuard
 export const useRole = (requiredRoles: string[] = []) => {
   const { user } = useAuth();
-  
+
   if (requiredRoles.length === 0) return true;
-  
-  // For now, just check if user is staff/admin
-  // You can expand this based on your role system
   if (requiredRoles.includes('admin')) {
-    return user?.username === 'admin'; // Simple check, improve as needed
+    return user?.username === 'admin';
   }
-  
+
   return true;
 };
 
@@ -70,12 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuthStatus = async () => {
     try {
-      const token = authService.getToken();
-      if (!token) {
-        setAuthState({ user: null, isLoading: false, isAuthenticated: false, error: null });
-        return;
-      }
-
       const user = await authService.getCurrentUser();
       setAuthState({
         user,
@@ -93,10 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string) => {
     try {
       const response = await authService.login({ username, password });
-      
-      // Store tokens using the token manager
-      const { tokenManager } = await import('@/lib/api');
-      tokenManager.setTokens(response.tokens.access, response.tokens.refresh);
 
       setAuthState({
         user: response.user,

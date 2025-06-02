@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['@radix-ui'],
-  images: {
+  images: { 
     domains: ['localhost'],
     unoptimized: process.env.NODE_ENV === 'development'
   },
