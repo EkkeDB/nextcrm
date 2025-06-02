@@ -131,19 +131,31 @@ class UserLoginSerializer(serializers.Serializer):
         return attrs
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    # User fields
-    username = serializers.CharField(source='user.username', read_only=True)
-    email = serializers.EmailField(source='user.email')
-    first_name = serializers.CharField(source='user.first_name')
-    last_name = serializers.CharField(source='user.last_name')
-    last_login = serializers.DateTimeField(source='user.last_login', read_only=True)
-    date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
+    # User fields (no source needed - these are direct User fields)
+    username = serializers.CharField(read_only=True)
+    email = serializers.EmailField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    last_login = serializers.DateTimeField(read_only=True)
+    date_joined = serializers.DateTimeField(read_only=True)
     
-    # Profile fields
-    full_name = serializers.ReadOnlyField()
+    # Profile fields (these need source since they're on the related profile)
+    phone = serializers.CharField(source='profile.phone', required=False, allow_blank=True)
+    company = serializers.CharField(source='profile.company', required=False, allow_blank=True)
+    position = serializers.CharField(source='profile.position', required=False, allow_blank=True)
+    timezone = serializers.CharField(source='profile.timezone', required=False)
+    language = serializers.CharField(source='profile.language', required=False)
+    avatar = serializers.ImageField(source='profile.avatar', required=False, allow_null=True)
+    gdpr_consent = serializers.BooleanField(source='profile.gdpr_consent', read_only=True)
+    marketing_consent = serializers.BooleanField(source='profile.marketing_consent', read_only=True)
+    last_activity = serializers.DateTimeField(source='profile.last_activity', read_only=True)
+    is_mfa_enabled = serializers.BooleanField(source='profile.is_mfa_enabled', read_only=True)
+    
+    # Computed field
+    full_name = serializers.SerializerMethodField()
     
     class Meta:
-        model = UserProfile
+        model = User  # Change this to User instead of UserProfile
         fields = [
             'username', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'company', 'position', 'timezone', 'language',
@@ -151,21 +163,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'gdpr_consent', 'marketing_consent', 'last_activity'
         ]
     
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+    
     def update(self, instance, validated_data):
-        # Update user fields
-        user_data = {}
-        if 'user' in validated_data:
-            user_data = validated_data.pop('user')
-        
-        for field, value in user_data.items():
-            setattr(instance.user, field, value)
-        instance.user.save()
+        # Update user fields directly
+        user_fields = ['email', 'first_name', 'last_name']
+        for field in user_fields:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
         
         # Update profile fields
-        for field, value in validated_data.items():
-            setattr(instance, field, value)
-        instance.save()
+        profile_data = validated_data.pop('profile', {})
+        if profile_data:
+            profile, created = UserProfile.objects.get_or_create(user=instance)
+            for field, value in profile_data.items():
+                setattr(profile, field, value)
+            profile.save()
         
+        instance.save()
         return instance
 
 class ChangePasswordSerializer(serializers.Serializer):
