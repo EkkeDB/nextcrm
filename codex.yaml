@@ -1,2 +1,8 @@
+
+docker:
+  compose_file: docker-compose.yml
+  service: backend
+=======
 setup:
   - pip install -r requirements.txt
+
